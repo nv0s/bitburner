@@ -1,0 +1,47 @@
+/** @param {NS} ns */
+export async function main(ns, target = ns.args[0]) {
+  // .10w .84g .05h
+  // slaves must NOT loop
+  // sleep 60000 = 1 min
+  // 12.5 grows per weaken
+  // use ns.args[1] to pass timing to slave
+
+  //to-do: update to usedRam i/o maxRam; time each block to wait til completed before advancing
+
+  const securityThresh = ns.getServerMinSecurityLevel(target);
+  const moneyThresh = ns.getServerMaxMoney(target);
+  const home = ns.getHostname();
+
+  while (true) {
+
+    //if security != minimum: use all threads to reduce
+    if (ns.getServerSecurityLevel(target) > securityThresh * 1.1) {
+      // removed  || ns.getServerMoneyAvailable(target) < moneyThresh * 0.95) from above
+      const threads = Math.floor((ns.getServerMaxRam(home) * .95) / ns.getScriptRam("loopweak-slave.js"))
+      ns.exec("loopweak-slave.js", home, threads, target)
+      await ns.sleep(100)
+    }
+
+    //if money isnt max: mix weaken and grow
+    else if (ns.getServerMoneyAvailable(target) < moneyThresh * 0.95) {
+      const wThreads = Math.floor((ns.getServerMaxRam(home) * .48) / ns.getScriptRam("loopweak-slave.js"))
+      const gThreads = Math.floor((ns.getServerMaxRam(home) * .48) / ns.getScriptRam("loopgrow-slave.js"))
+      ns.exec("loopweak-slave.js", home, wThreads, target)
+      ns.exec("loopgrow-slave.js", home, gThreads, target)
+      await ns.sleep(100)
+    }
+
+    //start full ratio loop
+    else {
+      const wThreads = Math.floor((ns.getServerMaxRam(home) * .1) / ns.getScriptRam("loopweak-slave.js"))
+      const gThreads = Math.floor((ns.getServerMaxRam(home) * .75) / ns.getScriptRam("loopgrow-slave.js"))
+      const hThreads = Math.floor((ns.getServerMaxRam(home) * .1) / ns.getScriptRam("loophack-slave.js"))
+      ns.getServerSecurityLevel(target) < securityThresh * 1.1
+      ns.getServerMoneyAvailable(target) > moneyThresh * 0.95
+      ns.exec("loopweak-slave.js", home, wThreads, target)
+      ns.exec("loopgrow-slave.js", home, gThreads, target)
+      ns.exec("loophack-slave.js", home, hThreads, target)
+      await ns.sleep(100)
+    }
+  }
+}
